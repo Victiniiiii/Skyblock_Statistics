@@ -1,8 +1,6 @@
-install.packages(c("httr", "jsonlite", "ggplot2", "gridExtra"))
+install.packages(c("httr", "jsonlite"))
 library(httr)
 library(jsonlite)
-library(ggplot2)
-library(gridExtra)
 
 API_KEY <- readLines("config.txt")[1]
 NETWORTH_ENDPOINT <- "http://localhost:3000/networth"
@@ -138,7 +136,7 @@ collectDataToCSV <- function() {
                 username = username,
                 magical_power = mp,
                 level = lvl,
-                networth = as.numeric(nw)
+                networth = nw
             ))
 
         }, error = function(e) {
