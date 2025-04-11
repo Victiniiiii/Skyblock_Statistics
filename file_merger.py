@@ -6,13 +6,13 @@ def merge_and_sort_names(file1, file2):
     names_list1 = read_names_from_file(file1)
     names_list2 = read_names_from_file(file2)
     
-    merged_names = set(names_list1 + names_list2)
+    merged_names = set(names_list1 + names_list2)    
     sorted_names = sorted(merged_names)
     
     return sorted_names
 
 def save_names_to_file(names, file_path):
-    with open(file_path, 'a') as file:
+    with open(file_path, 'w') as file:
         for name in names:
             file.write(name + '\n')
 
@@ -21,5 +21,4 @@ file2 = 'player_list.txt'
 
 sorted_names = merge_and_sort_names(file1, file2)
 save_names_to_file(sorted_names, file2)
-
-print(f"The merged and sorted names have been saved to {file2}")
+print(f"The merged and fully sorted names have been saved to {file2}")
