@@ -12,16 +12,14 @@ def merge_and_sort_names(file1, file2):
     return sorted_names
 
 def save_names_to_file(names, file_path):
-    with open(file_path, 'w') as file:
+    with open(file_path, 'a') as file:
         for name in names:
             file.write(name + '\n')
 
-# Example usage
 file1 = 'output.txt'
 file2 = 'player_list.txt'
-file3 = 'file3.txt'
 
 sorted_names = merge_and_sort_names(file1, file2)
-save_names_to_file(sorted_names, file3)
+save_names_to_file(sorted_names, file2)
 
-print(f"The merged and sorted names have been saved to {file3}")
+print(f"The merged and sorted names have been saved to {file2}")
