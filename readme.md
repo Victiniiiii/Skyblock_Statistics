@@ -1,7 +1,7 @@
 # 📊 Hypixel Skyblock Statistics Correlation Project
 
 ## 🔍 What is this?
-This is a statistics-focused project that explores correlations between **Player Level**, **Net Worth**, and **Magical Power** in the online game *Hypixel Skyblock*.  
+This is a statistics-focused project that explores correlations between **Player Level**, **Net Worth** (How rich a player is), and **Magical Power** (How strong a player is) in the online game *Hypixel Skyblock*.  
 
 The goal is to:
 - Understand how strongly these stats are related
@@ -36,7 +36,6 @@ install.packages(c(
   "jsonlite",    
   "data.table"  
 ))
-
 ```
 
 #### 🟢 Node.js (for net worth calculations)
@@ -128,16 +127,7 @@ Final results are still running. This section will be updated with the complete 
 All data in this repository is free to use.
 
 Special thanks to:
-- SkyHelper-Networth (Networth Calculation)
-- Soopy API
-- Mojang API
-- Hypixel API
-
----
-
-## 🧠 Future Improvements
-
-- Add regression analysis or clustering on the stats
-- Automate the entire pipeline via a wrapper script
-- Include summary statistics (mean, median, standard deviation) in the plots
-- Export final report as PDF or Markdown slide deck
+- SkyHelper-Networth --> https://github.com/Altpapier/SkyHelper-Networth
+- Soopy API (For leaderboard API)
+- Mojang API (Turning user id's to usernames)
+- Hypixel API (Guild members list, user and museum data)
