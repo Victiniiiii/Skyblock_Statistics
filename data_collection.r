@@ -39,7 +39,6 @@ getProfileData <- function(uuid) {
     }
 
     data <- content(res, "parsed", type = "application/json")
-
     if (!isTRUE(data$success) || length(data$profiles) == 0) {
         stop("No profile data")
     }
@@ -100,11 +99,12 @@ calculateNetworth <- function(profileData, museumData, bankBalance) {
     formatC(nw_num, format = "f", digits = 2, big.mark = ",")
 }
 
-collectData <- function() {
+collectDataToCSV <- function() {
     users <- trimws(readLines("player_list.txt"))
-    users <- unique(users[users != ""]) # dedupe & drop blanks
+    users <- unique(users[users != ""])  # dedupe & drop blanks
 
-    data_for_plotting <- data.frame(
+    data_for_csv <- data.frame(
+        username = character(0),
         magical_power = numeric(0),
         level = numeric(0),
         networth = numeric(0)
@@ -134,7 +134,8 @@ collectData <- function() {
                 "\t💰 Net worth:", nw, "coins\n"
             )
 
-            data_for_plotting <- rbind(data_for_plotting, data.frame(
+            data_for_csv <- rbind(data_for_csv, data.frame(
+                username = username,
                 magical_power = mp,
                 level = lvl,
                 networth = as.numeric(nw)
@@ -145,28 +146,7 @@ collectData <- function() {
         })
     }
 
-    return(data_for_plotting)
+    write.csv(data_for_csv, "player_data.csv", row.names = FALSE)
 }
 
-plotData <- function(data_for_plotting) {
-    p1 <- ggplot(data_for_plotting, aes(x = magical_power, y = networth)) +
-        geom_point() + geom_smooth(method = "lm", color = "blue", se = FALSE) +
-        labs(title = "Magical Power vs Networth", x = "Magical Power", y = "Networth (coins)")
-
-    p2 <- ggplot(data_for_plotting, aes(x = level, y = networth)) +
-        geom_point() + geom_smooth(method = "lm", color = "red", se = FALSE) +
-        labs(title = "Level vs Networth", x = "Level", y = "Networth (coins)")
-
-    p3 <- ggplot(data_for_plotting, aes(x = magical_power, y = level)) +
-        geom_point() + geom_smooth(method = "lm", color = "green", se = FALSE) +
-        labs(title = "Magical Power vs Level", x = "Magical Power", y = "Level")
-
-    grid.arrange(p1, p2, p3, ncol = 1)
-}
-
-processAndPlot <- function() {
-    data_for_plotting <- collectData()
-    plotData(data_for_plotting)
-}
-
-processAndPlot()
+collectDataToCSV()
