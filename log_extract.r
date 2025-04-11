@@ -1,0 +1,5 @@
+log_lines <- readLines("guild_crawler.log")
+found_lines <- grep("Found new player:", log_lines, value = TRUE)
+usernames <- sub(".*Found new player: ", "", found_lines)
+writeLines(usernames, "new_players.txt")
+cat("Extracted", length(usernames), "usernames to new_players.txt\n")
