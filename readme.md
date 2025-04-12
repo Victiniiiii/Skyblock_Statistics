@@ -22,7 +22,7 @@ Get an API key here: [https://developer.hypixel.net/](https://developer.hypixel.
 #### 🐍 Python (for scraping usernames)
 Install the required packages using pip:
 ```
-pip install selenium aiohttp asyncio_throttle requests logging
+pip install aiohttp asyncio_throttle logging
 ```
 
 #### 🧮 R (for data analysis & plotting)
@@ -49,27 +49,21 @@ Make sure Node.js and npm are installed on your system.
 
 ## 🔄 Username Gathering Workflow
 
-### Step 1: Scrape Forum Usernames
-```
-python username_finder.py
-```
-Scrapes Minecraft usernames from Hypixel forums. Outputs a base list of ~2,000 usernames.
-
-### Step 2: Scrape Soopy Leaderboards
+### Step 1: Scrape Soopy Leaderboards
 ```
 Rscript scrape_soopy.r
 ```
-Uses Soopy API to collect usernames of the top 10,000 players across multiple leaderboards. Adds ~35,000 usernames, most of which are high-level.
+Uses Soopy API to collect usernames of the top 10,000 players across multiple leaderboards. Adds ~35,000 usernames, most of which are high-level. Takes really quick.
 
-### Step 3: Expand via Guild Memberships
+### Step 2: Expand via Guild Memberships
 ```
 python guild_checker.py
 ```
-For each username, checks their guild and extracts guildmates. This helps balance the dataset by adding mid/low-level players.
+For each username, checks their guild and extracts guildmates. This helps balance the dataset by adding mid/low-level players. May take several hours.
 
 → Expected to add ~[INSERT ROUGH COUNT] more usernames. (Update this once known.)
 
-### Step 4: Merge and Deduplicate
+### Step 3: Merge and Deduplicate
 ```
 Rscript log_extract.r
 ```

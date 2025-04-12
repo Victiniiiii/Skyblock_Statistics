@@ -22,7 +22,7 @@ seen_guilds = set()
 all_uuids = set()
 
 # Throttle limits, Mojang and Hypixel both have 1 request per second limit.
-hypixel_throttler = Throttler(rate_limit=1, period=1)
+hypixel_throttler = Throttler(rate_limit=2, period=1) # Temporarily 2
 mojang_throttler = Throttler(rate_limit=1, period=1)
 
 progress_counter = 0
