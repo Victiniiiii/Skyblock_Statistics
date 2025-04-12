@@ -60,11 +60,11 @@ async def throttled_fetch(session, url, throttler):
                     elif resp.status == 429:
                         error_429_counter += 1
                         logger.warning(f"429 Rate limited on {url} [{error_429_counter}]")
-                        print(f"    🔁 429 Rate limited [{error_429_counter}/25] on {url}")
+                        print(f"    🔁 429 Rate limited [{error_429_counter}/50] on {url}")
 
-                        if error_429_counter >= 25:
-                            print("\n🛑 Hit 25 consecutive 429s. Pausing script.")
-                            logger.error("Paused due to 25 consecutive 429 errors.")
+                        if error_429_counter >= 50:
+                            print("\n🛑 Hit 50 consecutive 429s. Pausing script.")
+                            logger.error("Paused due to 50 consecutive 429 errors.")
                             save_state()
                             exit(1)
                     else:
