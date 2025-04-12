@@ -4,51 +4,39 @@ library(jsonlite)
 API_KEY <- readLines("config.txt")[1]
 NETWORTH_ENDPOINT <- "http://localhost:3000/networth"
 
-# This function inputs minecraft UUID and outputs minecraft usernames.
-getUUID <- function(username, retries = 3, delay = 2) {
-    url <- paste0("https://api.mojang.com/users/profiles/minecraft/", username)
+# Function to fetch profile data with retry logic for rate-limiting (status 429)
+getProfileData <- function(uuid, retries = 3, delay = 2) {
+    url <- paste0("https://api.hypixel.net/v2/skyblock/profiles?uuid=", uuid, "&key=", API_KEY)
     
     for (i in 1:retries) {
-        response <- GET(url)
-        status <- status_code(response)
+        res <- GET(url)
+        status <- status_code(res)
         
         if (status == 200) {
-            data <- content(response, "parsed", type = "application/json")
-            return(data$id)
-        } else if (status == 429) { # 429 --> Too many requests
-            cat("⏳ Mojang API rate-limited. Waiting", delay, "seconds... (Try", i, "/", retries, ")\n")
+            data <- content(res, "parsed", type = "application/json")
+            if (!isTRUE(data$success) || length(data$profiles) == 0) {
+                stop("No profile data")
+            }
+            sel <- Filter(function(p) isTRUE(p$selected), data$profiles)
+            if (length(sel) == 0) stop("No selected profile")
+            p <- sel[[1]]
+            return(list(
+                profileData = p$members[[uuid]],
+                bankBalance = if (!is.null(p$banking)) p$banking$balance else 0,
+                profileId   = p$profile_id
+            ))
+        } else if (status == 429) {  # 429 -> Too many requests
+            cat("⏳ Hypixel API rate-limited. Waiting", delay, "seconds... (Attempt", i, "/", retries, ")\n")
             Sys.sleep(delay)
-            delay <- delay * 2  # Doubles the last delay
+            delay <- delay * 2  # Double the delay for next retry
         } else {
-            stop("❌ Mojang API failed for ", username, " (status ", status, ")")
+            stop("❌ Hypixel API failed for UUID ", uuid, " (status ", status, ")")
         }
     }
 
-    stop("❌ Mojang API still failing after retries for ", username)
-}
-
-getProfileData <- function(uuid) {
-    url <- paste0("https://api.hypixel.net/v2/skyblock/profiles?uuid=", uuid, "&key=", API_KEY)
-    res <- GET(url)
-
-    if (status_code(res) != 200) {
-        stop("SkyBlock Profile API failed (status ", status_code(res), ")")
-    }
-
-    data <- content(res, "parsed", type = "application/json")
-    if (!isTRUE(data$success) || length(data$profiles) == 0) {
-        stop("No profile data")
-    }
-
-    sel <- Filter(function(p) isTRUE(p$selected), data$profiles)
-    if (length(sel) == 0) stop("No selected profile")
-    p <- sel[[1]]
-
-    list(
-        profileData = p$members[[uuid]],
-        bankBalance = if (!is.null(p$banking)) p$banking$balance else 0,
-        profileId   = p$profile_id
-    )
+    # If retries exceeded, return NULL and log it, don't skip.
+    cat("❌ Failed after retries for UUID ", uuid, "\n")
+    return(NULL)
 }
 
 getMuseumData <- function(uuid, profileId) {
@@ -83,7 +71,7 @@ calculateNetworth <- function(profileData, museumData, bankBalance) {
         encode = "json",
         content_type_json()
     )
-    
+
     if (status_code(res) != 200) {
         stop("Networth API returned ", status_code(res), ": ",
              content(res, "text", encoding = "UTF-8"))
@@ -97,50 +85,113 @@ calculateNetworth <- function(profileData, museumData, bankBalance) {
 }
 
 collectDataToCSV <- function() {
-    users <- trimws(readLines("player_list.txt"))
-    users <- unique(users[users != ""])  # dedupe & drop blanks
+    uuids <- trimws(readLines("uuids.txt"))
+    uuids <- unique(uuids[uuids != ""])  # Remove blank lines and duplicates
 
     data_for_csv <- data.frame(
-        username = character(0),
+        uuid          = character(0),
         magical_power = numeric(0),
-        level = numeric(0),
-        networth = numeric(0)
+        level         = numeric(0),
+        networth      = numeric(0),
+        stringsAsFactors = FALSE
     )
 
-    for (username in users) {
-        cat("\n👤 Player:", username, "\n")
+    failed_uuids <- c()
+
+    for (uuid in uuids) {
+        cat("\n👤 Processing UUID:", uuid, "\n")
+
+        prof <- NULL
+        tryCatch({
+            prof <- getProfileData(uuid)
+        }, error = function(e) {
+            cat("\t❌ Error during profile retrieval:", conditionMessage(e), "– Continuing to next UUID.\n")
+        })
+
+        if (is.null(prof)) {
+            failed_uuids <- c(failed_uuids, uuid)
+            cat("\t❌ Skipping UUID:", uuid, "due to failure\n")
+            next
+        }
 
         tryCatch({
-            uuid <- getUUID(username)
-            prof <- getProfileData(uuid)
             pd   <- prof$profileData
             bb   <- prof$bankBalance
             pid  <- prof$profileId
-            md <- getMuseumData(uuid, pid)
-            mp <- pd$accessory_bag_storage$highest_magical_power
-            lvl_exp <- pd$leveling$experience
-            lvl <- lvl_exp / 100
-            nw <- calculateNetworth(pd, md, bb)
+            md   <- getMuseumData(uuid, pid)
+
+            mp  <- pd$accessory_bag_storage$highest_magical_power
+            lvl <- pd$leveling$experience / 100
+            nw  <- calculateNetworth(pd, md, bb)
 
             cat(
-                "\t✅ UUID:", uuid, "\n",
-                "\t✅ Profile & bank retrieved\n",
+                "\t✅ Profile & bank data retrieved\n",
                 "\t✅ Museum data retrieved\n",
                 "\t📈 Level:", lvl, "\n",
                 "\t✨ Magical Power:", mp, "\n",
-                "\t💰 Net worth:", nw, "coins\n"
+                "\t💰 Networth:", nw, "coins\n"
             )
 
             data_for_csv <- rbind(data_for_csv, data.frame(
-                username = username,
+                uuid          = uuid,
                 magical_power = mp,
-                level = lvl,
-                networth = nw
+                level         = lvl,
+                networth      = nw,
+                stringsAsFactors = FALSE
             ))
 
         }, error = function(e) {
-            cat("\t❌ Excluding", username, "–", conditionMessage(e), "\n")
+            cat("\t❌ Error during processing for UUID:", uuid, "-", conditionMessage(e), "– Continuing to next UUID.\n")
         })
+    }
+
+    if (length(failed_uuids) > 0) {
+        cat("\n🚧 Retrying failed UUIDs...\n")
+        for (uuid in failed_uuids) {
+            cat("\n👤 Retrying UUID:", uuid, "\n")
+
+            prof <- NULL
+            tryCatch({
+                prof <- getProfileData(uuid)
+            }, error = function(e) {
+                cat("\t❌ Error during profile retrieval:", conditionMessage(e), "– Skipping UUID.\n")
+            })
+
+            if (is.null(prof)) {
+                cat("\t❌ Failed to retrieve data for UUID:", uuid, "after retries.\n")
+                next
+            }
+
+            tryCatch({
+                pd   <- prof$profileData
+                bb   <- prof$bankBalance
+                pid  <- prof$profileId
+                md   <- getMuseumData(uuid, pid)
+
+                mp  <- pd$accessory_bag_storage$highest_magical_power
+                lvl <- pd$leveling$experience / 100
+                nw  <- calculateNetworth(pd, md, bb)
+
+                cat(
+                    "\t✅ Profile & bank data retrieved\n",
+                    "\t✅ Museum data retrieved\n",
+                    "\t📈 Level:", lvl, "\n",
+                    "\t✨ Magical Power:", mp, "\n",
+                    "\t💰 Networth:", nw, "coins\n"
+                )
+
+                data_for_csv <- rbind(data_for_csv, data.frame(
+                    uuid          = uuid,
+                    magical_power = mp,
+                    level         = lvl,
+                    networth      = nw,
+                    stringsAsFactors = FALSE
+                ))
+
+            }, error = function(e) {
+                cat("\t❌ Error during processing for UUID:", uuid, "-", conditionMessage(e), "– Skipping UUID.\n")
+            })
+        }
     }
 
     write.csv(data_for_csv, "player_data.csv", row.names = FALSE)
