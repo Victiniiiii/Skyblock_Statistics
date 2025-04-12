@@ -21,8 +21,8 @@ total_players = len(existing_names)
 seen_guilds = set()
 all_uuids = set()
 
-# Throttle limits, Mojang has 1 request for a second, and Hypixel has 2 requests for a second limit.
-hypixel_throttler = Throttler(rate_limit=2, period=1)
+# Throttle limits, Mojang and Hypixel both have 1 request per second limit.
+hypixel_throttler = Throttler(rate_limit=1, period=1)
 mojang_throttler = Throttler(rate_limit=1, period=1)
 
 progress_counter = 0
