@@ -53,25 +53,19 @@ Make sure Node.js and npm are installed on your system.
 ```
 Rscript scrape_soopy.r
 ```
-Uses Soopy API to collect usernames of the top 10,000 players across multiple leaderboards. Adds ~35,000 usernames, most of which are high-level. Takes really quick.
+Uses Soopy API to collect usernames of the top 10,000 players across multiple leaderboards. Adds ~35,000 usernames, most of which are high-level. Takes only a couple of minutes to run.
 
 ### Step 2: Expand via Guild Memberships
 ```
 python find_uuid_with_guild.py
 ```
-For each username, checks their guild and extracts guildmates. This helps balance the dataset by adding mid/low-level players. May take several hours. Used Python here for asynchronous functions which speed up the code by a lot.
+For each username, checks their guild and extracts guildmates. This helps balance the dataset by adding mid/low-level players. May take up to 12 hours to fully finish running. Used Python here for asynchronous functions which speed up the code by a lot.
 
-→ Expected to add ~[INSERT ROUGH COUNT] more usernames. (Update this once known.)
-
-### Step 3: Merge and Deduplicate
-```
-Rscript log_extract.r
-```
-Combines all gathered usernames and removes duplicates. Prepares player_list.txt as the unified input list.
+→ Turns all the usernames we have, and all their guild members to a UUID list. Expected to add ~[INSERT ROUGH COUNT] UUID's. **(Update this once known.)**
 
 ---
 
-## 📥 Data Collection
+## 📥 Data Collection from the usernames
 
 Javascript is needed here for the usage of net worth calculation NPM package. Make sure your Node.js server is running:
 ```
@@ -84,10 +78,10 @@ Rscript data_collection.r
 ```
 
 This generates `player_data.csv`, which contains:
-- username
-- level
-- magical_power
-- networth
+- Username
+- Player Level
+- Magical Power
+- Net Worth
 
 Players with disabled APIs are excluded to maintain data quality.
 
