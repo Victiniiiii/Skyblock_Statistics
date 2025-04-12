@@ -1,4 +1,3 @@
-install.packages(c("ggplot2", "gridExtra", "scales"))
 library(ggplot2)
 library(gridExtra)
 library(scales)
