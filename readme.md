@@ -34,7 +34,8 @@ install.packages(c(
   "scales",     
   "httr",   
   "jsonlite",    
-  "data.table"  
+  "data.table",
+  "broom"
 ))
 ```
 
