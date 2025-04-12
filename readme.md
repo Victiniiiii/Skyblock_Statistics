@@ -57,9 +57,9 @@ Uses Soopy API to collect usernames of the top 10,000 players across multiple le
 
 ### Step 2: Expand via Guild Memberships
 ```
-python guild_checker.py
+python find_uuid_with_guild.py
 ```
-For each username, checks their guild and extracts guildmates. This helps balance the dataset by adding mid/low-level players. May take several hours.
+For each username, checks their guild and extracts guildmates. This helps balance the dataset by adding mid/low-level players. May take several hours. Used Python here for asynchronous functions which speed up the code by a lot.
 
 → Expected to add ~[INSERT ROUGH COUNT] more usernames. (Update this once known.)
 
@@ -73,7 +73,7 @@ Combines all gathered usernames and removes duplicates. Prepares player_list.txt
 
 ## 📥 Data Collection
 
-Make sure your Node.js server is running:
+Javascript is needed here for the usage of net worth calculation NPM package. Make sure your Node.js server is running:
 ```
 node server.js
 ```

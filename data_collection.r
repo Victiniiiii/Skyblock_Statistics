@@ -3,20 +3,31 @@ library(jsonlite)
 
 API_KEY <- readLines("config.txt")[1]
 NETWORTH_ENDPOINT <- "http://localhost:3000/networth"
+STATE_FILE <- "state.json"
+OUTPUT_FILE <- "player_data.csv"
 
-# Function to fetch profile data with retry logic for rate-limiting (status 429)
-getProfileData <- function(uuid, retries = 3, delay = 2) {
+loadState <- function() {
+    if (file.exists(STATE_FILE)) {
+        state <- fromJSON(STATE_FILE)
+        return(state)
+    } else {
+        return(list(processed_uuids = character()))
+    }
+}
+
+saveState <- function(processed_uuids) {
+    write(toJSON(list(processed_uuids = processed_uuids), auto_unbox = TRUE, pretty = TRUE), STATE_FILE)
+}
+
+getProfileData <- function(uuid, retries = 5, delay = 2) {
     url <- paste0("https://api.hypixel.net/v2/skyblock/profiles?uuid=", uuid, "&key=", API_KEY)
-    
     for (i in 1:retries) {
         res <- GET(url)
         status <- status_code(res)
         
         if (status == 200) {
             data <- content(res, "parsed", type = "application/json")
-            if (!isTRUE(data$success) || length(data$profiles) == 0) {
-                stop("No profile data")
-            }
+            if (!isTRUE(data$success) || length(data$profiles) == 0) stop("No profile data")
             sel <- Filter(function(p) isTRUE(p$selected), data$profiles)
             if (length(sel) == 0) stop("No selected profile")
             p <- sel[[1]]
@@ -25,17 +36,15 @@ getProfileData <- function(uuid, retries = 3, delay = 2) {
                 bankBalance = if (!is.null(p$banking)) p$banking$balance else 0,
                 profileId   = p$profile_id
             ))
-        } else if (status == 429) {  # 429 -> Too many requests
-            cat("⏳ Hypixel API rate-limited. Waiting", delay, "seconds... (Attempt", i, "/", retries, ")\n")
+        } else if (status == 429) {
+            cat("⏳ Rate limited. Waiting", delay, "seconds... (Attempt", i, "/", retries, ")\n")
             Sys.sleep(delay)
-            delay <- delay * 2  # Double the delay for next retry
+            delay <- delay * 2
         } else {
-            stop("❌ Hypixel API failed for UUID ", uuid, " (status ", status, ")")
+            stop("❌ API error ", status)
         }
     }
-
-    # If retries exceeded, return NULL and log it, don't skip.
-    cat("❌ Failed after retries for UUID ", uuid, "\n")
+    cat("❌ Failed after retries for UUID", uuid, "\n")
     return(NULL)
 }
 
@@ -43,19 +52,12 @@ getMuseumData <- function(uuid, profileId) {
     url <- paste0("https://api.hypixel.net/v2/skyblock/museum?profile=", profileId, "&key=", API_KEY)
     res <- GET(url)
 
-    if (status_code(res) != 200) {
-        stop("Museum API failed (status ", status_code(res), ")")
-    }
+    if (status_code(res) != 200) stop("Museum API failed (status ", status_code(res), ")")
 
     data <- content(res, "parsed", type = "application/json")
 
-    if (!isTRUE(data$success) || !is.list(data$members)) {
-        stop("Museum data missing")
-    }
-
-    if (!(uuid %in% names(data$members))) {
-        stop("No museum entry for this UUID")
-    }
+    if (!isTRUE(data$success) || !is.list(data$members)) stop("Museum data missing")
+    if (!(uuid %in% names(data$members))) stop("No museum entry for UUID")
 
     data$members[[uuid]]
 }
@@ -65,52 +67,58 @@ calculateNetworth <- function(profileData, museumData, bankBalance) {
         NETWORTH_ENDPOINT,
         body = toJSON(list(
             profileData = profileData,
-            museumData  = museumData,
+            museumData = museumData,
             bankBalance = bankBalance
         ), auto_unbox = TRUE),
         encode = "json",
         content_type_json()
     )
 
-    if (status_code(res) != 200) {
-        stop("Networth API returned ", status_code(res), ": ",
-             content(res, "text", encoding = "UTF-8"))
-    }
+    if (status_code(res) != 200) stop("Networth API returned ", status_code(res), ": ", content(res, "text"))
 
     result <- content(res, "parsed", type = "application/json")
     raw_nw <- result$networth
     nw_num <- as.numeric(raw_nw)
     if (is.na(nw_num)) stop("Invalid networth value: ", raw_nw)
+
     formatC(nw_num, format = "f", digits = 2, big.mark = ",")
 }
 
 collectDataToCSV <- function() {
     uuids <- trimws(readLines("uuids.txt"))
-    uuids <- unique(uuids[uuids != ""])  # Remove blank lines and duplicates
+    uuids <- unique(uuids[uuids != ""])
 
-    data_for_csv <- data.frame(
-        uuid          = character(0),
-        magical_power = numeric(0),
-        level         = numeric(0),
-        networth      = numeric(0),
-        stringsAsFactors = FALSE
-    )
+    state <- loadState()
+    processed <- state$processed_uuids
 
-    failed_uuids <- c()
+    if (file.exists(OUTPUT_FILE)) {
+        data_for_csv <- read.csv(OUTPUT_FILE, stringsAsFactors = FALSE)
+    } else {
+        data_for_csv <- data.frame(
+            uuid          = character(0),
+            magical_power = numeric(0),
+            level         = numeric(0),
+            networth      = numeric(0),
+            stringsAsFactors = FALSE
+        )
+    }
 
     for (uuid in uuids) {
-        cat("\n👤 Processing UUID:", uuid, "\n")
+        if (uuid %in% processed) {
+            cat("⏭️ Skipping already processed UUID:", uuid, "\n")
+            next
+        }
 
+        cat("\n👤 Processing UUID:", uuid, "\n")
         prof <- NULL
+
         tryCatch({
             prof <- getProfileData(uuid)
         }, error = function(e) {
-            cat("\t❌ Error during profile retrieval:", conditionMessage(e), "– Continuing to next UUID.\n")
+            cat("\t❌ Profile error:", conditionMessage(e), "\n")
         })
 
         if (is.null(prof)) {
-            failed_uuids <- c(failed_uuids, uuid)
-            cat("\t❌ Skipping UUID:", uuid, "due to failure\n")
             next
         }
 
@@ -125,8 +133,7 @@ collectDataToCSV <- function() {
             nw  <- calculateNetworth(pd, md, bb)
 
             cat(
-                "\t✅ Profile & bank data retrieved\n",
-                "\t✅ Museum data retrieved\n",
+                "\t✅ Profile & museum loaded\n",
                 "\t📈 Level:", lvl, "\n",
                 "\t✨ Magical Power:", mp, "\n",
                 "\t💰 Networth:", nw, "coins\n"
@@ -140,61 +147,17 @@ collectDataToCSV <- function() {
                 stringsAsFactors = FALSE
             ))
 
+            write.csv(data_for_csv, OUTPUT_FILE, row.names = FALSE)
+
+            processed <- c(processed, uuid)
+            saveState(processed)
+
         }, error = function(e) {
-            cat("\t❌ Error during processing for UUID:", uuid, "-", conditionMessage(e), "– Continuing to next UUID.\n")
+            cat("\t❌ Error processing UUID:", uuid, "-", conditionMessage(e), "\n")
         })
     }
 
-    if (length(failed_uuids) > 0) {
-        cat("\n🚧 Retrying failed UUIDs...\n")
-        for (uuid in failed_uuids) {
-            cat("\n👤 Retrying UUID:", uuid, "\n")
-
-            prof <- NULL
-            tryCatch({
-                prof <- getProfileData(uuid)
-            }, error = function(e) {
-                cat("\t❌ Error during profile retrieval:", conditionMessage(e), "– Skipping UUID.\n")
-            })
-
-            if (is.null(prof)) {
-                cat("\t❌ Failed to retrieve data for UUID:", uuid, "after retries.\n")
-                next
-            }
-
-            tryCatch({
-                pd   <- prof$profileData
-                bb   <- prof$bankBalance
-                pid  <- prof$profileId
-                md   <- getMuseumData(uuid, pid)
-
-                mp  <- pd$accessory_bag_storage$highest_magical_power
-                lvl <- pd$leveling$experience / 100
-                nw  <- calculateNetworth(pd, md, bb)
-
-                cat(
-                    "\t✅ Profile & bank data retrieved\n",
-                    "\t✅ Museum data retrieved\n",
-                    "\t📈 Level:", lvl, "\n",
-                    "\t✨ Magical Power:", mp, "\n",
-                    "\t💰 Networth:", nw, "coins\n"
-                )
-
-                data_for_csv <- rbind(data_for_csv, data.frame(
-                    uuid          = uuid,
-                    magical_power = mp,
-                    level         = lvl,
-                    networth      = nw,
-                    stringsAsFactors = FALSE
-                ))
-
-            }, error = function(e) {
-                cat("\t❌ Error during processing for UUID:", uuid, "-", conditionMessage(e), "– Skipping UUID.\n")
-            })
-        }
-    }
-
-    write.csv(data_for_csv, "player_data.csv", row.names = FALSE)
+    cat("\n🎉 Data collection complete. Total:", nrow(data_for_csv), "entries.\n")
 }
 
 collectDataToCSV()

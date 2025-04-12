@@ -1,7 +1,11 @@
 import aiohttp
 import asyncio
 import logging
+import os
+import json
 from asyncio_throttle import Throttler
+
+STATE_FILE = "state.json"
 
 logging.basicConfig(
     filename='guild_crawler.log',
@@ -15,39 +19,61 @@ with open("config.txt", "r") as file:
 HEADERS = {"User-Agent": "SkyBlockGuildCrawler/1.0"}
 
 with open("player_list.txt", "r") as f:
-    existing_names = list(name.strip() for name in f if name.strip())
-total_players = len(existing_names)
+    player_list = [name.strip() for name in f if name.strip()]
 
-seen_guilds = set()
-all_uuids = set()
+if os.path.exists(STATE_FILE):
+    with open(STATE_FILE, "r") as f:
+        state = json.load(f)
+    seen_guilds = set(state["seen_guilds"])
+    all_uuids = set(state["all_uuids"])
+    progress_counter = state["progress_counter"]
+else:
+    seen_guilds = set()
+    all_uuids = set()
+    progress_counter = 0
 
-# Throttle limits, Mojang and Hypixel both have 1 request per second limit.
-hypixel_throttler = Throttler(rate_limit=2, period=1) # Temporarily 2
-mojang_throttler = Throttler(rate_limit=1, period=1)
-
-progress_counter = 0
+total_players = len(player_list)
+error_429_counter = 0
 progress_lock = asyncio.Lock()
 
+# Throttlers
+hypixel_throttler = Throttler(rate_limit=2, period=1)
+mojang_throttler = Throttler(rate_limit=1, period=1)
+
+def save_state():
+    with open(STATE_FILE, "w") as f:
+        json.dump({
+            "progress_counter": progress_counter,
+            "seen_guilds": list(seen_guilds),
+            "all_uuids": list(all_uuids)
+        }, f)
+
 async def throttled_fetch(session, url, throttler):
+    global error_429_counter
     async with throttler:
         for attempt in range(1, 1001):
             try:
                 async with session.get(url, headers=HEADERS) as resp:
                     if resp.status == 200:
+                        error_429_counter = 0
                         return await resp.json()
                     elif resp.status == 429:
-                        print(f"    🔁 [{attempt}/100] Rate limited on {url}, retrying…")
-                        logger.warning(f"429 Rate limited on {url}")
+                        error_429_counter += 1
+                        logger.warning(f"429 Rate limited on {url} [{error_429_counter}]")
+                        print(f"    🔁 429 Rate limited [{error_429_counter}/20] on {url}")
+
+                        if error_429_counter >= 20:
+                            print("\n🛑 Hit 20 consecutive 429s. Pausing script.")
+                            logger.error("Paused due to 20 consecutive 429 errors.")
+                            save_state()
+                            exit(1)
                     else:
-                        logger.warning(f"{resp.status} error for {url}, not retrying.")
+                        logger.warning(f"{resp.status} error on {url}")
                         return None
             except Exception as e:
-                print(f"    ⚠️  Exception on attempt {attempt} for {url}: {e}")
-                logger.warning(f"Exception fetching {url}: {e}")
+                logger.warning(f"Exception on {url}: {e}")
                 return None
             await asyncio.sleep(0.5)
-    print(f"    ❌ Gave up after 100 retries for {url}")
-    logger.error(f"Gave up after 100 retries for {url}")
     return None
 
 async def get_uuid(session, name):
@@ -67,53 +93,50 @@ async def get_guild_members(session, uuid):
 async def process_player(session, name, sem, player_index):
     global progress_counter
     async with sem:
-        print(f"\n🔎 [{player_index + 1}/{total_players}] Processing player: {name}")
-        logger.info(f"Start processing {name} ({player_index + 1}/{total_players})")
+        print(f"\n🔎 [{player_index + 1}/{total_players}] {name}")
+        logger.info(f"Processing {name}")
 
         try:
             uuid = await get_uuid(session, name)
             if not uuid:
-                print(f"    ⚠️  No UUID for {name}")
-                logger.warning(f"UUID not found for {name}")
+                print(f"    ⚠️ No UUID for {name}")
                 return
 
-            print(f"    • UUID for {name}: {uuid}")
             all_uuids.add(uuid)
-
             guild_id, members = await get_guild_members(session, uuid)
+
             if not guild_id:
-                print(f"    ⚠️  No guild found for {name}")
-                logger.info(f"No guild found for {name}")
+                print(f"    ⚠️ No guild for {name}")
                 return
 
             if guild_id in seen_guilds:
-                print(f"    ⚠️ Guild {guild_id} already processed. Skipping.")
-                logger.info(f"Skipped duplicate guild {guild_id}")
+                print(f"    ⏭️ Guild already processed: {guild_id}")
                 return
 
             seen_guilds.add(guild_id)
-            print(f"    • {len(members)} guild members found")
 
             for member_uuid in members:
                 all_uuids.add(member_uuid)
-                print(f"        ➕ Added UUID: {member_uuid}")
+                print(f"        ➕ {member_uuid}")
 
         except Exception as e:
             print(f"    ❌ Error processing {name}: {e}")
-            logger.error(f"Error processing {name}: {e}")
+            logger.error(f"Error on {name}: {e}")
         finally:
             async with progress_lock:
                 progress_counter += 1
-                print(f"✅ Done with {name} [{progress_counter}/{total_players} done]")
-                logger.info(f"Finished {name} [{progress_counter}/{total_players}]")
+                save_state()
+                print(f"✅ {name} done [{progress_counter}/{total_players}]")
 
 async def main():
     sem = asyncio.Semaphore(5)
 
+    names_to_process = player_list[progress_counter:]
+
     async with aiohttp.ClientSession() as session:
         tasks = [
-            asyncio.create_task(process_player(session, name, sem, i))
-            for i, name in enumerate(existing_names)
+            asyncio.create_task(process_player(session, name, sem, i + progress_counter))
+            for i, name in enumerate(names_to_process)
         ]
         await asyncio.gather(*tasks)
 
@@ -121,8 +144,14 @@ async def main():
         for uuid in sorted(all_uuids):
             f.write(uuid + "\n")
 
-    print(f"\n🎉 Done! Collected {len(all_uuids)} unique UUIDs.")
-    logger.info(f"Script complete — {len(all_uuids)} UUIDs collected.")
+    save_state()
+    print(f"\n🎉 Done! {len(all_uuids)} UUIDs saved.")
+    logger.info(f"Completed script. {len(all_uuids)} UUIDs collected.")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n⏸️ Interrupted manually. Saving progress...")
+        save_state()
+        logger.warning("Interrupted manually.")
