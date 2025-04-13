@@ -67,9 +67,6 @@ async def throttled_fetch(session, url, throttler):
                         print(f"    🔁 429 Rate limited [{error_429_counter}/50] on {url}")
 
                         if error_429_counter >= 50:
-                            progress_counter -= 10
-                            if progress_counter < 0:
-                                progress_counter = 0
                             print("\n🛑 Hit 50 consecutive 429s. Pausing script.")
                             logger.error("Paused due to 50 consecutive 429 errors.")
                             save_state()
@@ -126,14 +123,15 @@ async def process_player(session, name, sem, player_index):
                 all_uuids.add(member_uuid)
                 print(f"        ➕ {member_uuid}")
 
-        except Exception as e:
-            print(f"    ❌ Error processing {name}: {e}")
-            logger.error(f"Error on {name}: {e}")
-        finally:
             async with progress_lock:
                 progress_counter += 1
                 save_state()
                 print(f"✅ {name} done [{progress_counter}/{total_players}]")
+
+        except Exception as e:
+            print(f"    ❌ Error processing {name}: {e}")
+            logger.error(f"Error on {name}: {e}")
+
 
 async def main():
     sem = asyncio.Semaphore(5)
