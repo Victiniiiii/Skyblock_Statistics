@@ -6,20 +6,29 @@ import json
 from asyncio_throttle import Throttler
 
 STATE_FILE = "state.json"
+LOG_FILE = "guild_crawler.log"
+PLAYER_LIST_FILE = "player_list.txt"
+KEY_FILE = "config.txt"
+OUTPUT_FILE = "uuids.txt"
 
 logging.basicConfig(
-    filename='guild_crawler.log',
+    filename= LOG_FILE,
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger()
 
-with open("config.txt", "r") as file:
+with open(KEY_FILE, "r") as file:
     API_KEY = file.readline().strip()
 HEADERS = {"User-Agent": "SkyBlockGuildCrawler/1.0"}
 
-with open("player_list.txt", "r") as f:
+with open(PLAYER_LIST_FILE, "r") as f:
     player_list = [name.strip() for name in f if name.strip()]
+
+progress_counter = 0
+total_players = len(player_list)
+error_429_counter = 0
+progress_lock = asyncio.Lock()
 
 if os.path.exists(STATE_FILE):
     with open(STATE_FILE, "r") as f:
@@ -29,12 +38,7 @@ if os.path.exists(STATE_FILE):
     progress_counter = state["progress_counter"]
 else:
     seen_guilds = set()
-    all_uuids = set()
-    progress_counter = 0
-
-total_players = len(player_list)
-error_429_counter = 0
-progress_lock = asyncio.Lock()
+    all_uuids = set()   
 
 # Throttlers
 hypixel_throttler = Throttler(rate_limit=2, period=1)
@@ -63,6 +67,9 @@ async def throttled_fetch(session, url, throttler):
                         print(f"    🔁 429 Rate limited [{error_429_counter}/50] on {url}")
 
                         if error_429_counter >= 50:
+                            progress_counter -= 10
+                            if progress_counter < 0:
+                                progress_counter = 0
                             print("\n🛑 Hit 50 consecutive 429s. Pausing script.")
                             logger.error("Paused due to 50 consecutive 429 errors.")
                             save_state()
@@ -140,7 +147,7 @@ async def main():
         ]
         await asyncio.gather(*tasks)
 
-    with open("uuids.txt", "w") as f:
+    with open(OUTPUT_FILE, "w") as f:
         for uuid in sorted(all_uuids):
             f.write(uuid + "\n")
 
