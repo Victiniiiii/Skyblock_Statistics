@@ -104,6 +104,7 @@ async def process_player(session, name, sem, player_index):
             uuid = await get_uuid(session, name)
             if not uuid:
                 print(f"    ⚠️ No UUID for {name}")
+                progress_counter += 1
                 return
 
             all_uuids.add(uuid)
@@ -111,10 +112,12 @@ async def process_player(session, name, sem, player_index):
 
             if not guild_id:
                 print(f"    ⚠️ No guild for {name}")
+                progress_counter += 1
                 return
 
             if guild_id in seen_guilds:
                 print(f"    ⏭️ Guild already processed: {guild_id}")
+                progress_counter += 1
                 return
 
             seen_guilds.add(guild_id)
