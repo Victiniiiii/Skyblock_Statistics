@@ -109,9 +109,10 @@ Final results are still running. This section will be updated with the complete 
 
 ✅ All gathered data and plots will be free to use once published.
 
-Current Progress:
+**Current Progress:**
 
-UUID Collection: 🟩🟩🟩🟩⬜⬜⬜⬜⬜⬜ **37.5%**
+UUID Collection: 🟩🟩🟩🟩🟩⬜⬜⬜⬜⬜ **49.68%**
+
 Data Collection: ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ **0%**
 
 ---
