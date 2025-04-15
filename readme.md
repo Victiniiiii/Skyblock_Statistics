@@ -59,7 +59,7 @@ Uses Soopy API to collect usernames of the top 10,000 players across multiple le
 ```
 python find_uuid_with_guild.py
 ```
-For each username, checks their guild and extracts guildmates. This helps balance the dataset by adding mid/low-level players. May take up to 12 hours to fully finish running. Used Python here for asynchronous functions which speed up the code by a lot.
+For each username, checks their guild and extracts guildmates. This helps balance the dataset by adding mid/low-level players. May take up to 12 hours to fully finish running, but because of hypixel API limits, you can do 5000 requests per day. Used Python here for asynchronous functions which speed up the code by a lot. 
 
 → Turns all the usernames we have, and all their guild members to a UUID list. Expected to add ~[INSERT ROUGH COUNT] UUID's. **(Update this once known.)**
 
@@ -109,6 +109,11 @@ Final results are still running. This section will be updated with the complete 
 
 ✅ All gathered data and plots will be free to use once published.
 
+Current Progress:
+
+UUID Collection: 🟩🟩🟩🟩⬜⬜⬜⬜⬜⬜ **37.5%**
+Data Collection: ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ **0%**
+
 ---
 
 ## 📄 License and Credits
@@ -117,6 +122,6 @@ All data in this repository is free to use.
 
 Special thanks to:
 - SkyHelper-Networth --> https://github.com/Altpapier/SkyHelper-Networth
-- Soopy API (For leaderboard API)
-- Mojang API (Turning user id's to usernames)
+- Soopy API (For leaderboard data)
+- Mojang API (Turning UUID's to usernames)
 - Hypixel API (Guild members list, user and museum data)
