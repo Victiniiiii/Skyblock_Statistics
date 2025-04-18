@@ -111,7 +111,7 @@ Final results are still running. This section will be updated with the complete 
 
 **Current Progress:**
 
-UUID Collection: 🟩🟩🟩🟩🟩🟩⬜⬜⬜⬜ **62.08%**
+UUID Collection: 🟩🟩🟩🟩🟩🟩🟩⬜⬜⬜ **74.60%**
 
 Data Collection: ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ **0%**
 
