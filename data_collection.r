@@ -9,22 +9,34 @@ OUTPUT_FILE <- "player_data.csv"
 loadState <- function() {
     if (file.exists(STATE_FILE)) {
         state <- fromJSON(STATE_FILE)
+        if (is.null(state$processed_uuids)) state$processed_uuids <- character()
+        if (is.null(state$current_index)) state$current_index <- 1
+        if (is.null(state$total)) state$total <- 0
         return(state)
     } else {
-        return(list(processed_uuids = character()))
+        return(list(
+            processed_uuids = character(),
+            current_index = 1,
+            total = 0
+        ))
     }
 }
 
-saveState <- function(processed_uuids) {
-    write(toJSON(list(processed_uuids = processed_uuids), auto_unbox = TRUE, pretty = TRUE), STATE_FILE)
+saveState <- function(processed_uuids, current_index, total) {
+    state <- list(
+        processed_uuids = processed_uuids,
+        current_index = current_index,
+        total = total
+    )
+    write(toJSON(state, auto_unbox = TRUE, pretty = TRUE), STATE_FILE)
 }
 
-getProfileData <- function(uuid, retries = 5, delay = 2) {
+getProfileData <- function(uuid, retries = 1) {
     url <- paste0("https://api.hypixel.net/v2/skyblock/profiles?uuid=", uuid, "&key=", API_KEY)
     for (i in 1:retries) {
         res <- GET(url)
         status <- status_code(res)
-        
+
         if (status == 200) {
             data <- content(res, "parsed", type = "application/json")
             if (!isTRUE(data$success) || length(data$profiles) == 0) stop("No profile data")
@@ -37,9 +49,8 @@ getProfileData <- function(uuid, retries = 5, delay = 2) {
                 profileId   = p$profile_id
             ))
         } else if (status == 429) {
-            cat("⏳ Rate limited. Waiting", delay, "seconds... (Attempt", i, "/", retries, ")\n")
-            Sys.sleep(delay)
-            delay <- delay * 2
+            cat("⏳ Rate limited. Waiting", 5, "seconds... (Attempt", i, "/", retries, ")\n")
+            Sys.sleep(5)
         } else {
             stop("❌ API error ", status)
         }
@@ -90,9 +101,12 @@ collectDataToCSV <- function() {
 
     state <- loadState()
     processed <- state$processed_uuids
+    current_index <- state$current_index
+    total <- if (state$total == 0) length(uuids) else state$total
 
     if (file.exists(OUTPUT_FILE)) {
         data_for_csv <- read.csv(OUTPUT_FILE, stringsAsFactors = FALSE)
+        processed <- unique(c(processed, data_for_csv$uuid))
     } else {
         data_for_csv <- data.frame(
             uuid          = character(0),
@@ -103,15 +117,21 @@ collectDataToCSV <- function() {
         )
     }
 
-    for (uuid in uuids) {
+    for (i in current_index:length(uuids)) {
+        uuid <- uuids[i]
+
+        cat(sprintf("\n📦 Progress: %d / %d\n", i, total))
+
         if (uuid %in% processed) {
             cat("⏭️ Skipping already processed UUID:", uuid, "\n")
             next
         }
 
-        cat("\n👤 Processing UUID:", uuid, "\n")
-        prof <- NULL
+        cat("👤 Processing UUID:", uuid, "\n")
 
+        saveState(processed, i, total)
+
+        prof <- NULL
         tryCatch({
             prof <- getProfileData(uuid)
         }, error = function(e) {
@@ -150,7 +170,7 @@ collectDataToCSV <- function() {
             write.csv(data_for_csv, OUTPUT_FILE, row.names = FALSE)
 
             processed <- c(processed, uuid)
-            saveState(processed)
+            saveState(processed, i + 1, total)
 
         }, error = function(e) {
             cat("\t❌ Error processing UUID:", uuid, "-", conditionMessage(e), "\n")
@@ -158,6 +178,7 @@ collectDataToCSV <- function() {
     }
 
     cat("\n🎉 Data collection complete. Total:", nrow(data_for_csv), "entries.\n")
+    saveState(processed, 1, total)
 }
 
 collectDataToCSV()

@@ -61,7 +61,7 @@ python find_uuid_with_guild.py
 ```
 For each username, checks their guild and extracts guildmates. This helps balance the dataset by adding mid/low-level players. May take up to 12 hours to fully finish running, but because of hypixel API limits, you can do 5000 requests per day. Used Python here for asynchronous functions which speed up the code by a lot. 
 
-→ Turns all the usernames we have, and all their guild members to a UUID list. Expected to add ~[INSERT ROUGH COUNT] UUID's. **(Update this once known.)**
+→ Turns all the usernames we have, and all their guild members to a UUID list. Expected to add 85000 UUID's.
 
 ---
 
@@ -111,9 +111,9 @@ Final results are still running. This section will be updated with the complete 
 
 **Current Progress:**
 
-UUID Collection: 🟩🟩🟩🟩🟩🟩🟩⬜⬜⬜ **74.60%**
+UUID Collection: 🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩 **100%**
 
-Data Collection: ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ **0%**
+Data Collection: ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ **0.003%**
 
 ---
 
