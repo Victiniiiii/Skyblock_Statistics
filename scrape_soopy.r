@@ -38,7 +38,6 @@ existing_usernames <- if (file.exists("player_list.txt")) {
     character()
 }
 
-# Combine and remove duplicates
 final_usernames <- unique(c(existing_usernames, all_usernames))
 writeLines(final_usernames, "player_list.txt")
 cat("🎉 Saved", length(final_usernames), "unique usernames to player_list.txt\n")

@@ -1,14 +1,26 @@
+# --------------------[ DEPENDENCIES ]--------------------
+install.packages(c(
+    "httr",
+    "jsonlite",
+    "progress"
+))
 library(httr)
 library(jsonlite)
+library(progress)
 
-API_KEY <- readLines("config.txt")[1]
-NETWORTH_ENDPOINT <- "http://localhost:3000/networth"
-STATE_FILE <- "state.json"
-OUTPUT_FILE <- "player_data.csv"
+# --------------------[ CONFIGURATION ]--------------------
+CONFIG <- list(
+    api_key = readLines("config.txt")[1],
+    networth_endpoint = "http://localhost:3000/networth",
+    state_file = "state.json",
+    output_file = "player_data.csv",
+    uuid_file = "uuids.txt"
+)
 
+# --------------------[ STATE HANDLING ]--------------------
 loadState <- function() {
-    if (file.exists(STATE_FILE)) {
-        state <- fromJSON(STATE_FILE)
+    if (file.exists(CONFIG$state_file)) {
+        state <- fromJSON(CONFIG$state_file)
         if (is.null(state$processed_uuids)) state$processed_uuids <- character()
         if (is.null(state$current_index)) state$current_index <- 1
         if (is.null(state$total)) state$total <- 0
@@ -28,11 +40,12 @@ saveState <- function(processed_uuids, current_index, total) {
         current_index = current_index,
         total = total
     )
-    write(toJSON(state, auto_unbox = TRUE, pretty = TRUE), STATE_FILE)
+    write(toJSON(state, auto_unbox = TRUE, pretty = TRUE), CONFIG$state_file)
 }
 
-getProfileData <- function(uuid, retries = 1) {
-    url <- paste0("https://api.hypixel.net/v2/skyblock/profiles?uuid=", uuid, "&key=", API_KEY)
+# --------------------[ API FUNCTIONS ]--------------------
+getProfileData <- function(uuid, retries = 3) {
+    url <- sprintf("https://api.hypixel.net/v2/skyblock/profiles?uuid=%s&key=%s", uuid, CONFIG$api_key)
     for (i in 1:retries) {
         res <- GET(url)
         status <- status_code(res)
@@ -49,24 +62,22 @@ getProfileData <- function(uuid, retries = 1) {
                 profileId   = p$profile_id
             ))
         } else if (status == 429) {
-            cat("⏳ Rate limited. Waiting", 5, "seconds... (Attempt", i, "/", retries, ")\n")
-            Sys.sleep(5)
+            delay <- 2 * i
+            cat(sprintf("⏳ Rate limited. Waiting %d seconds... (Attempt %d/%d)\n", delay, i, retries))
+            Sys.sleep(delay)
         } else {
             stop("❌ API error ", status)
         }
     }
-    cat("❌ Failed after retries for UUID", uuid, "\n")
     return(NULL)
 }
 
 getMuseumData <- function(uuid, profileId) {
-    url <- paste0("https://api.hypixel.net/v2/skyblock/museum?profile=", profileId, "&key=", API_KEY)
+    url <- sprintf("https://api.hypixel.net/v2/skyblock/museum?profile=%s&key=%s", profileId, CONFIG$api_key)
     res <- GET(url)
-
     if (status_code(res) != 200) stop("Museum API failed (status ", status_code(res), ")")
 
     data <- content(res, "parsed", type = "application/json")
-
     if (!isTRUE(data$success) || !is.list(data$members)) stop("Museum data missing")
     if (!(uuid %in% names(data$members))) stop("No museum entry for UUID")
 
@@ -75,7 +86,7 @@ getMuseumData <- function(uuid, profileId) {
 
 calculateNetworth <- function(profileData, museumData, bankBalance) {
     res <- POST(
-        NETWORTH_ENDPOINT,
+        CONFIG$networth_endpoint,
         body = toJSON(list(
             profileData = profileData,
             museumData = museumData,
@@ -86,8 +97,8 @@ calculateNetworth <- function(profileData, museumData, bankBalance) {
     )
 
     if (status_code(res) != 200) stop("Networth API returned ", status_code(res), ": ", content(res, "text"))
-
     result <- content(res, "parsed", type = "application/json")
+
     raw_nw <- result$networth
     nw_num <- as.numeric(raw_nw)
     if (is.na(nw_num)) stop("Invalid networth value: ", raw_nw)
@@ -95,90 +106,112 @@ calculateNetworth <- function(profileData, museumData, bankBalance) {
     formatC(nw_num, format = "f", digits = 2, big.mark = ",")
 }
 
+# --------------------[ DATA HELPERS ]--------------------
+initializeDataFrame <- function() {
+    if (file.exists(CONFIG$output_file)) {
+        return(read.csv(CONFIG$output_file, stringsAsFactors = FALSE))
+    } else {
+        return(data.frame(
+            uuid = character(),
+            magical_power = numeric(),
+            level = numeric(),
+            networth = character(),
+            stringsAsFactors = FALSE
+        ))
+    }
+}
+
+appendRecord <- function(df, uuid, mp, lvl, nw) {
+    df[nrow(df) + 1, ] <- list(uuid = uuid, magical_power = mp, level = lvl, networth = nw)
+    return(df)
+}
+
+safeExtract <- function(obj, path, default = NA) {
+    tryCatch(
+        {
+            val <- eval(parse(text = paste0("obj$", path)))
+            if (is.null(val)) default else val
+        },
+        error = function(e) default
+    )
+}
+
+formatDuration <- function(seconds) {
+    days <- seconds %/% 86400
+    hours <- (seconds %% 86400) %/% 3600
+    minutes <- (seconds %% 3600) %/% 60
+    secs <- seconds %% 60
+    sprintf("%dd %02dh %02dm %02ds", days, hours, minutes, secs)
+}
+
+# --------------------[ MAIN LOOP ]--------------------
 collectDataToCSV <- function() {
-    uuids <- trimws(readLines("uuids.txt"))
-    uuids <- unique(uuids[uuids != ""])
+    uuids <- unique(trimws(readLines(CONFIG$uuid_file)))
+    uuids <- uuids[uuids != ""]
 
     state <- loadState()
     processed <- state$processed_uuids
     current_index <- state$current_index
     total <- if (state$total == 0) length(uuids) else state$total
+    data_for_csv <- initializeDataFrame()
 
-    if (file.exists(OUTPUT_FILE)) {
-        data_for_csv <- read.csv(OUTPUT_FILE, stringsAsFactors = FALSE)
-        processed <- unique(c(processed, data_for_csv$uuid))
-    } else {
-        data_for_csv <- data.frame(
-            uuid          = character(0),
-            magical_power = numeric(0),
-            level         = numeric(0),
-            networth      = numeric(0),
-            stringsAsFactors = FALSE
-        )
-    }
+    start_time <- Sys.time()
+    remaining <- length(uuids) - current_index + 1
 
     for (i in current_index:length(uuids)) {
         uuid <- uuids[i]
+        elapsed <- as.numeric(Sys.time() - start_time, units = "secs")
+        est_total <- (elapsed / (i - current_index + 1)) * remaining
+        eta <- formatDuration(round(est_total))
 
-        cat(sprintf("\n📦 Progress: %d / %d\n", i, total))
+        cat(sprintf("\n📦 Progress: %d / %d | ETA: %s\n", i, total, eta))
 
         if (uuid %in% processed) {
-            cat("⏭️ Skipping already processed UUID:", uuid, "\n")
             next
         }
-
-        cat("👤 Processing UUID:", uuid, "\n")
 
         saveState(processed, i, total)
-
         prof <- NULL
-        tryCatch({
-            prof <- getProfileData(uuid)
-        }, error = function(e) {
-            cat("\t❌ Profile error:", conditionMessage(e), "\n")
-        })
 
-        if (is.null(prof)) {
-            next
-        }
+        tryCatch(
+            {
+                prof <- getProfileData(uuid)
+            },
+            error = function(e) {
+                cat("❌ Profile error for", uuid, ":", conditionMessage(e), "\n")
+            }
+        )
 
-        tryCatch({
-            pd   <- prof$profileData
-            bb   <- prof$bankBalance
-            pid  <- prof$profileId
-            md   <- getMuseumData(uuid, pid)
+        if (is.null(prof)) next
 
-            mp  <- pd$accessory_bag_storage$highest_magical_power
-            lvl <- pd$leveling$experience / 100
-            nw  <- calculateNetworth(pd, md, bb)
+        tryCatch(
+            {
+                pd <- prof$profileData
+                bb <- prof$bankBalance
+                pid <- prof$profileId
+                md <- getMuseumData(uuid, pid)
 
-            cat(
-                "\t✅ Profile & museum loaded\n",
-                "\t📈 Level:", lvl, "\n",
-                "\t✨ Magical Power:", mp, "\n",
-                "\t💰 Networth:", nw, "coins\n"
-            )
+                mp <- safeExtract(pd, "accessory_bag_storage$highest_magical_power", 0)
+                lvl <- safeExtract(pd, "leveling$experience", 0) / 100
+                nw <- calculateNetworth(pd, md, bb)
 
-            data_for_csv <- rbind(data_for_csv, data.frame(
-                uuid          = uuid,
-                magical_power = mp,
-                level         = lvl,
-                networth      = nw,
-                stringsAsFactors = FALSE
-            ))
+                cat(sprintf("✅ %s — Level: %.2f | MP: %d | NW: %s\n", uuid, lvl, mp, nw))
 
-            write.csv(data_for_csv, OUTPUT_FILE, row.names = FALSE)
+                data_for_csv <- appendRecord(data_for_csv, uuid, mp, lvl, nw)
+                write.csv(data_for_csv, CONFIG$output_file, row.names = FALSE)
 
-            processed <- c(processed, uuid)
-            saveState(processed, i + 1, total)
-
-        }, error = function(e) {
-            cat("\t❌ Error processing UUID:", uuid, "-", conditionMessage(e), "\n")
-        })
+                processed <- c(processed, uuid)
+                saveState(processed, i + 1, total)
+            },
+            error = function(e) {
+                cat("❌ Error processing", uuid, ":", conditionMessage(e), "\n")
+            }
+        )
     }
 
-    cat("\n🎉 Data collection complete. Total:", nrow(data_for_csv), "entries.\n")
+    cat("\n🎉 Data collection complete. Total entries:", nrow(data_for_csv), "\n")
     saveState(processed, 1, total)
 }
 
+# --------------------[ EXECUTION ]--------------------
 collectDataToCSV()
