@@ -1,0 +1,15 @@
+
+--- Regression: networth vs magical_power ---
+R^2       : 0.667
+Intercept : -6963069707.226
+Slope     : 19287539.059
+
+--- Regression: networth vs level ---
+R^2       : 0.599
+Intercept : -8519780166.364
+Slope     : 76236576.211
+
+--- Regression: level vs magical_power ---
+R^2       : 0.782
+Intercept : 54.820
+Slope     : 0.212
