@@ -6,9 +6,9 @@ const uuidFile = "uuids.txt";
 const stateFile = "data_state.json";
 const outputFile = "player_data.csv";
 
-const MAX_THROTTLE_ERRORS = 50;
-let throttleErrors = 0;
+const MAX_THROTTLE_ERRORS = 10;
 const THROTTLE_COOLDOWN_BASE = 5000;
+let throttleErrors = 0;
 
 function loadState() {
 	if (fs.existsSync(stateFile)) {
@@ -230,6 +230,7 @@ async function main() {
 
 				console.log(`✅ ${uuid} — Level: ${lvl.toFixed(2)} | MP: ${mp} | NW: ${networth.toFixed(2)}`);
 				processed.push(uuid);
+                throttleErrors = 0;
 			} catch (e) {
 				console.error(`❌ Calculation error for ${uuid}: ${e.message}`);
 				if (e.message.includes("Maximum throttle errors") || e.message.includes("API throttled")) {
