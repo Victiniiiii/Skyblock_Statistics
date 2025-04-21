@@ -6,8 +6,9 @@ const uuidFile = "uuids.txt";
 const stateFile = "data_state.json";
 const outputFile = "player_data.csv";
 
-const MAX_RATE_LIMIT_ERRORS = 50;
-let rateLimitErrors = 0;
+const MAX_THROTTLE_ERRORS = 50;
+let throttleErrors = 0;
+const THROTTLE_COOLDOWN_BASE = 5000;
 
 function loadState() {
 	if (fs.existsSync(stateFile)) {
@@ -16,38 +17,71 @@ function loadState() {
 			processed: s.processed || [],
 			index: s.index || 0,
 			total: s.total || null,
+			lastThrottleTime: s.lastThrottleTime || 0,
 		};
 	}
-	return { processed: [], index: 0, total: null };
+	return { processed: [], index: 0, total: null, lastThrottleTime: 0 };
 }
 
-function saveState(processed, index, total) {
-	fs.writeFileSync(stateFile, JSON.stringify({ processed, index, total }, null, 2));
+function saveState(processed, index, total, lastThrottleTime) {
+	fs.writeFileSync(stateFile, JSON.stringify({ processed, index, total, lastThrottleTime }, null, 2));
 }
 
 async function fetchJSON(url) {
+	const state = loadState();
+
+	const timeSinceLastThrottle = Date.now() - state.lastThrottleTime;
+	if (state.lastThrottleTime > 0 && timeSinceLastThrottle < THROTTLE_COOLDOWN_BASE) {
+		const waitTime = THROTTLE_COOLDOWN_BASE - timeSinceLastThrottle;
+		console.log(`⏳ Waiting ${waitTime}ms due to recent throttling...`);
+		await new Promise((resolve) => setTimeout(resolve, waitTime));
+	}
+
 	for (let i = 1; i <= 3; i++) {
 		try {
 			const res = await fetch(url);
+
 			if (res.status === 429) {
-				rateLimitErrors++;
-				console.warn(`⚠️ Rate limited (429). Retry ${i}/3... (Total: ${rateLimitErrors}/${MAX_RATE_LIMIT_ERRORS})`);
-				
-				if (rateLimitErrors >= MAX_RATE_LIMIT_ERRORS) {
-					throw new Error("Maximum rate limit errors reached. Stopping execution.");
+				throttleErrors++;
+				console.warn(`⚠️ Rate limited (429). Retry ${i}/3... (Total: ${throttleErrors}/${MAX_THROTTLE_ERRORS})`);
+
+				if (throttleErrors >= MAX_THROTTLE_ERRORS) {
+					throw new Error("Maximum throttle errors reached. Stopping execution.");
 				}
-				
-				await new Promise((r) => setTimeout(r, 1500 * i));
+
+				const backoffTime = THROTTLE_COOLDOWN_BASE * Math.pow(2, i);
+				console.log(`⏳ Backing off for ${backoffTime}ms...`);
+				await new Promise((r) => setTimeout(r, backoffTime));
 				continue;
 			}
+
 			if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
-			return await res.json();
+			const data = await res.json();
+
+			if (data.throttle === true) {
+				throttleErrors++;
+				const throttleTime = Date.now();
+				saveState(state.processed, state.index, state.total, throttleTime);
+
+				console.warn(`⚠️ API throttled (${data.cause}). Retry ${i}/3... (Total: ${throttleErrors}/${MAX_THROTTLE_ERRORS})`);
+
+				if (throttleErrors >= MAX_THROTTLE_ERRORS) {
+					throw new Error("Maximum throttle errors reached. Stopping execution.");
+				}
+
+				const backoffTime = THROTTLE_COOLDOWN_BASE * Math.pow(2, i);
+				console.log(`⏳ Backing off for ${backoffTime}ms...`);
+				await new Promise((r) => setTimeout(r, backoffTime));
+				continue;
+			}
+
+			return data;
 		} catch (err) {
-			if (i === 3 || (err.message !== "Fetch failed: 429" && !err.message.includes("Maximum rate limit errors"))) {
+			if (i === 3 || (!err.message.includes("Fetch failed: 429") && !err.message.includes("Maximum throttle errors"))) {
 				throw err;
 			}
-			
-			if (err.message.includes("Maximum rate limit errors")) {
+
+			if (err.message.includes("Maximum throttle errors")) {
 				throw err;
 			}
 		}
@@ -59,7 +93,14 @@ async function getProfileData(uuid) {
 	const url = `https://api.hypixel.net/v2/skyblock/profiles?uuid=${uuid}&key=${apiKey}`;
 	try {
 		const data = await fetchJSON(url);
-		if (!data.success || !data.profiles?.length) throw new Error("No profile data");
+		if (!data.success) {
+			if (data.cause === "Key throttle" && data.throttle === true) {
+				throw new Error("API throttled");
+			}
+			throw new Error(`API returned error: ${data.cause || "Unknown error"}`);
+		}
+
+		if (!data.profiles?.length) throw new Error("No profile data");
 		const sel = data.profiles.find((p) => p.selected);
 		if (!sel) throw new Error("No selected profile");
 		return {
@@ -69,7 +110,7 @@ async function getProfileData(uuid) {
 		};
 	} catch (err) {
 		console.error(`❌ Profile error for ${uuid}: ${err.message}`);
-		if (err.message.includes("Maximum rate limit errors")) {
+		if (err.message.includes("Maximum throttle errors") || err.message.includes("API throttled")) {
 			throw err;
 		}
 		return null;
@@ -78,11 +119,25 @@ async function getProfileData(uuid) {
 
 async function getMuseumData(uuid, profileId) {
 	const url = `https://api.hypixel.net/v2/skyblock/museum?profile=${profileId}&key=${apiKey}`;
-	const data = await fetchJSON(url);
-	if (!data.success || !data.members[uuid]) {
-		throw new Error("Museum data missing");
+	try {
+		const data = await fetchJSON(url);
+		if (!data.success) {
+			if (data.cause === "Key throttle" && data.throttle === true) {
+				throw new Error("API throttled");
+			}
+			throw new Error(`API returned error: ${data.cause || "Unknown error"}`);
+		}
+
+		if (!data.members[uuid]) {
+			throw new Error("Museum data missing");
+		}
+		return data.members[uuid];
+	} catch (err) {
+		if (err.message.includes("Maximum throttle errors") || err.message.includes("API throttled")) {
+			throw err;
+		}
+		throw err;
 	}
-	return data.members[uuid];
 }
 
 async function calculateNetworth(profileData, museumData, bankBalance) {
@@ -108,12 +163,21 @@ async function main() {
 		.map((l) => l.trim())
 		.filter(Boolean);
 
-	let { processed, index, total } = loadState();
+	let { processed, index, total, lastThrottleTime } = loadState();
 	total = total || uuids.length;
 
 	const isFirstWrite = !fs.existsSync(outputFile);
-	
+
 	console.log(`Starting processing at index ${index}/${total} (${processed.length} already processed)`);
+
+	if (lastThrottleTime > 0) {
+		const timeSinceLastThrottle = Date.now() - lastThrottleTime;
+		if (timeSinceLastThrottle < THROTTLE_COOLDOWN_BASE * 2) {
+			const waitTime = Math.max(0, THROTTLE_COOLDOWN_BASE * 2 - timeSinceLastThrottle);
+			console.log(`⏳ Waiting ${waitTime}ms before starting due to previous throttling...`);
+			await new Promise((resolve) => setTimeout(resolve, waitTime));
+		}
+	}
 
 	try {
 		for (let i = index; i < uuids.length; i++) {
@@ -126,7 +190,12 @@ async function main() {
 			const progressPercentage = ((currentPosition / total) * 100).toFixed(2);
 			console.log(`📊 Processing ${currentPosition}/${total} (${progressPercentage}%) - UUID: ${uuid}`);
 
-			saveState(processed, i, total);
+			saveState(processed, i, total, lastThrottleTime);
+
+			if (i > index) {
+				await new Promise((resolve) => setTimeout(resolve, 300));
+			}
+
 			const prof = await getProfileData(uuid);
 			if (!prof) {
 				continue;
@@ -137,7 +206,7 @@ async function main() {
 				museum = await getMuseumData(uuid, prof.profileId);
 			} catch (e) {
 				console.error(`❌ Museum error for ${uuid}: ${e.message}`);
-				if (e.message.includes("Maximum rate limit errors")) {
+				if (e.message.includes("Maximum throttle errors") || e.message.includes("API throttled")) {
 					throw e;
 				}
 				continue;
@@ -163,19 +232,19 @@ async function main() {
 				processed.push(uuid);
 			} catch (e) {
 				console.error(`❌ Calculation error for ${uuid}: ${e.message}`);
-				if (e.message.includes("Maximum rate limit errors")) {
+				if (e.message.includes("Maximum throttle errors") || e.message.includes("API throttled")) {
 					throw e;
 				}
 			}
-			
-			saveState(processed, i + 1, total);
+
+			saveState(processed, i + 1, total, lastThrottleTime);
 		}
 
 		console.log(`\n🎉 Data collection complete: ${processed.length}/${total} (100%)`);
-		saveState([], 0, total);
+		saveState([], 0, total, 0);
 	} catch (error) {
-		if (error.message.includes("Maximum rate limit errors")) {
-			console.log(`\n⛔ Stopping execution after ${MAX_RATE_LIMIT_ERRORS} rate limit errors.`);
+		if (error.message.includes("Maximum throttle errors") || error.message.includes("API throttled")) {
+			console.log(`\n⛔ Stopping execution after ${MAX_THROTTLE_ERRORS} throttle errors.`);
 			console.log(`Progress saved at index ${index}. Run the script again later.`);
 		} else {
 			console.error(`\n❌ Unexpected error: ${error.message}`);
