@@ -5,7 +5,7 @@ import os
 import json
 from asyncio_throttle import Throttler
 
-STATE_FILE = "state.json"
+STATE_FILE = "guild_state.json"
 LOG_FILE = "guild_crawler.log"
 PLAYER_LIST_FILE = "player_list.txt"
 KEY_FILE = "config.txt"
