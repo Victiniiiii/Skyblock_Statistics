@@ -1,11 +1,13 @@
 const fs = require("fs");
-const path = require("path");
 const { ProfileNetworthCalculator } = require("skyhelper-networth");
 
 const apiKey = fs.readFileSync("config.txt", "utf8").trim();
 const uuidFile = "uuids.txt";
 const stateFile = "data_state.json";
 const outputFile = "player_data.csv";
+
+const MAX_RATE_LIMIT_ERRORS = 50;
+let rateLimitErrors = 0;
 
 function loadState() {
 	if (fs.existsSync(stateFile)) {
@@ -28,14 +30,24 @@ async function fetchJSON(url) {
 		try {
 			const res = await fetch(url);
 			if (res.status === 429) {
-				console.warn(`⚠️ Rate limited (429). Retry ${i}/3...`);
+				rateLimitErrors++;
+				console.warn(`⚠️ Rate limited (429). Retry ${i}/3... (Total: ${rateLimitErrors}/${MAX_RATE_LIMIT_ERRORS})`);
+				
+				if (rateLimitErrors >= MAX_RATE_LIMIT_ERRORS) {
+					throw new Error("Maximum rate limit errors reached. Stopping execution.");
+				}
+				
 				await new Promise((r) => setTimeout(r, 1500 * i));
 				continue;
 			}
 			if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
 			return await res.json();
 		} catch (err) {
-			if (i === 3 || err.message !== "Fetch failed: 429") {
+			if (i === 3 || (err.message !== "Fetch failed: 429" && !err.message.includes("Maximum rate limit errors"))) {
+				throw err;
+			}
+			
+			if (err.message.includes("Maximum rate limit errors")) {
 				throw err;
 			}
 		}
@@ -57,6 +69,9 @@ async function getProfileData(uuid) {
 		};
 	} catch (err) {
 		console.error(`❌ Profile error for ${uuid}: ${err.message}`);
+		if (err.message.includes("Maximum rate limit errors")) {
+			throw err;
+		}
 		return null;
 	}
 }
@@ -100,61 +115,72 @@ async function main() {
 	
 	console.log(`Starting processing at index ${index}/${total} (${processed.length} already processed)`);
 
-	for (let i = index; i < uuids.length; i++) {
-		const uuid = uuids[i];
-		if (processed.includes(uuid)) {
-			continue;
+	try {
+		for (let i = index; i < uuids.length; i++) {
+			const uuid = uuids[i];
+			if (processed.includes(uuid)) {
+				continue;
+			}
+
+			const currentPosition = i + 1;
+			const progressPercentage = ((currentPosition / total) * 100).toFixed(2);
+			console.log(`📊 Processing ${currentPosition}/${total} (${progressPercentage}%) - UUID: ${uuid}`);
+
+			saveState(processed, i, total);
+			const prof = await getProfileData(uuid);
+			if (!prof) {
+				continue;
+			}
+
+			let museum;
+			try {
+				museum = await getMuseumData(uuid, prof.profileId);
+			} catch (e) {
+				console.error(`❌ Museum error for ${uuid}: ${e.message}`);
+				if (e.message.includes("Maximum rate limit errors")) {
+					throw e;
+				}
+				continue;
+			}
+
+			try {
+				const networth = await calculateNetworth(prof.profileData, museum, prof.bankBalance);
+				const mp = prof.profileData.accessory_bag_storage?.highest_magical_power || 0;
+				const lvl = (prof.profileData.leveling?.experience || 0) / 100;
+
+				writeCsvRow(
+					outputFile,
+					{
+						uuid,
+						magical_power: mp,
+						level: lvl.toFixed(2),
+						networth: networth.toFixed(2),
+					},
+					isFirstWrite && i === index
+				);
+
+				console.log(`✅ ${uuid} — Level: ${lvl.toFixed(2)} | MP: ${mp} | NW: ${networth.toFixed(2)}`);
+				processed.push(uuid);
+			} catch (e) {
+				console.error(`❌ Calculation error for ${uuid}: ${e.message}`);
+				if (e.message.includes("Maximum rate limit errors")) {
+					throw e;
+				}
+			}
+			
+			saveState(processed, i + 1, total);
 		}
 
-		const currentPosition = i + 1;
-		const progressPercentage = ((currentPosition / total) * 100).toFixed(2);
-		console.log(`📊 Processing ${currentPosition}/${total} (${progressPercentage}%) - UUID: ${uuid}`);
-
-		saveState(processed, i, total);
-		const prof = await getProfileData(uuid);
-		if (!prof) {
-			continue;
+		console.log(`\n🎉 Data collection complete: ${processed.length}/${total} (100%)`);
+		saveState([], 0, total);
+	} catch (error) {
+		if (error.message.includes("Maximum rate limit errors")) {
+			console.log(`\n⛔ Stopping execution after ${MAX_RATE_LIMIT_ERRORS} rate limit errors.`);
+			console.log(`Progress saved at index ${index}. Run the script again later.`);
+		} else {
+			console.error(`\n❌ Unexpected error: ${error.message}`);
 		}
-
-		let museum;
-		try {
-			museum = await getMuseumData(uuid, prof.profileId);
-		} catch (e) {
-			console.error(`❌ Museum error for ${uuid}: ${e.message}`);
-			continue;
-		}
-
-		try {
-			const networth = await calculateNetworth(prof.profileData, museum, prof.bankBalance);
-			const mp = prof.profileData.accessory_bag_storage?.highest_magical_power || 0;
-			const lvl = (prof.profileData.leveling?.experience || 0) / 100;
-
-			writeCsvRow(
-				outputFile,
-				{
-					uuid,
-					magical_power: mp,
-					level: lvl.toFixed(2),
-					networth: networth.toFixed(2),
-				},
-				isFirstWrite && i === index
-			);
-
-			console.log(`✅ ${uuid} — Level: ${lvl.toFixed(2)} | MP: ${mp} | NW: ${networth.toFixed(2)}`);
-			processed.push(uuid);
-		} catch (e) {
-			console.error(`❌ Calculation error for ${uuid}: ${e.message}`);
-		}
-
-		const completedCount = processed.length;
-		const completionPercentage = ((completedCount / total) * 100).toFixed(2);
-		console.log(`📈 Progress: ${completedCount}/${total} (${completionPercentage}% complete)`);
-		
-		saveState(processed, i + 1, total);
 	}
-
-	console.log(`\n🎉 Data collection complete: ${processed.length}/${total} (100%)`);
-	saveState([], 0, total);
 }
 
 main();
