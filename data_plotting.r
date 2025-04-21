@@ -6,15 +6,12 @@ library(broom)
 library(dplyr)
 library(GGally)
 
-remove_outliers_df <- function(df, cols) {
-    for (col in cols) {
-        qnt <- quantile(df[[col]], probs = c(0.25, 0.75), na.rm = TRUE)
-        iqr <- qnt[2] - qnt[1]
-        lower <- qnt[1] - 1.5 * iqr
-        upper <- qnt[2] + 1.5 * iqr
-        df <- df %>% filter(df[[col]] >= lower & df[[col]] <= upper)
-    }
-    return(df)
+###########################
+##### GRAPHICS STUFF  #####
+###########################
+
+custom_x_scale <- function() {
+    scale_x_continuous(breaks = pretty_breaks(n = 10))
 }
 
 custom_y_scale <- function() {
@@ -22,12 +19,8 @@ custom_y_scale <- function() {
         breaks = pretty_breaks(n = 10),
         labels = label_number(scale_cut = cut_short_scale()),
         expand = expansion(mult = c(0.02, 0.02)),
-        limits = c(0, NA)
+        limits = c(0, NA) # Disables the Y axis below 0 (It's a bug on networth plots)
     )
-}
-
-custom_x_scale <- function() {
-    scale_x_continuous(breaks = pretty_breaks(n = 10))
 }
 
 common_theme <- theme_minimal(base_size = 13) +
@@ -40,8 +33,23 @@ common_theme <- theme_minimal(base_size = 13) +
         plot.background = element_rect(fill = "black")
     )
 
+###########################
+####### MAIN  STUFF #######
+###########################
+
+remove_outliers_df <- function(df, cols) { # Removes extreme values from the data
+    for (col in cols) {
+        qnt <- quantile(df[[col]], probs = c(0.25, 0.75), na.rm = TRUE)
+        iqr <- qnt[2] - qnt[1]
+        lower <- qnt[1] - 1.5 * iqr
+        upper <- qnt[2] + 1.5 * iqr
+        df <- df %>% filter(df[[col]] >= lower & df[[col]] <= upper)
+    }
+    return(df)
+}
+
 clean_data <- function(df) {
-    df$networth <- as.numeric(gsub("[^0-9.]", "", df$networth))
+    df$networth <- as.numeric(gsub("[^0-9.]", "", df$networth)) # Removes commas and other signs from the CSV data
     return(df)
 }
 
@@ -62,7 +70,7 @@ regression_and_plot <- function(data, xvar, yvar, xlab, ylab, color) {
 
     p <- ggplot(data, aes_string(x = xvar, y = yvar)) +
         geom_point(alpha = 0.6, color = color) +
-        geom_smooth(method = "loess", se = FALSE, color = color) +
+        geom_smooth(method = "loess", se = FALSE, color = color) + # Curved line
         labs(title = paste(xlab, "vs", ylab), x = xlab, y = ylab) +
         custom_x_scale() +
         custom_y_scale() +
