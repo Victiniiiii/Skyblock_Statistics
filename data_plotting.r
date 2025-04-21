@@ -48,10 +48,10 @@ plotDataFromCSV <- function() {
 
     common_theme <- theme_minimal(base_size = 13) +
         theme(
-            plot.title = element_text(hjust = 0.5, face = "bold", color = "white"),
-            axis.title = element_text(face = "bold", color = "white"),
-            axis.text = element_text(color = "white"),
-            panel.grid.major = element_line(color = "grey85"),
+            plot.title = element_text(hjust = 0.5, face = "bold", color = "#79827b"),
+            axis.title = element_text(face = "bold", color = "#79827b"),
+            axis.text = element_text(color = "#79827b"),
+            panel.grid.major = element_line(color = "#4a524c"),
             panel.background = element_rect(fill = "black"),
             plot.background = element_rect(fill = "black")
         )
