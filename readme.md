@@ -22,26 +22,18 @@ Get an API key here: [https://developer.hypixel.net/](https://developer.hypixel.
 #### 🐍 Python (for scraping usernames)
 Install the required packages using pip:
 ```
-pip install aiohttp asyncio_throttle logging
+pip install aiohttp asyncio-throttle
 ```
 
 #### 🧮 R (for data analysis & plotting)
 Install the following R libraries:
 ```
-install.packages(c(
-  "ggplot2",     
-  "gridExtra",   
-  "scales",     
-  "httr",   
-  "jsonlite",    
-  "data.table",
-  "broom"
-))
+install.packages(c("ggplot2", "gridExtra", "scales", "broom", "dplyr", "GGally"))
 ```
 
 #### 🟢 Node.js (for net worth calculations)
 ```
-npm install express skyhelper-networth body-parser cors
+npm install skyhelper-networth
 ```
 Make sure Node.js and npm are installed on your system.
 
@@ -67,14 +59,10 @@ For each username, checks their guild and extracts guildmates. This helps balanc
 
 ## 📥 Data Collection from the usernames
 
-Javascript is needed here for the usage of net worth calculation NPM package. Make sure your Node.js server is running:
+Javascript is needed here for the usage of net worth calculation NPM package. 
+Run the script:
 ```
-node server.js
-```
-
-Then run the R script:
-```
-Rscript data_collection.r
+node data_collection.js
 ```
 
 This generates `player_data.csv`, which contains:
@@ -113,7 +101,7 @@ Final results are still running. This section will be updated with the complete 
 
 UUID Collection: 🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩 **100%**
 
-Data Collection: ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ **0.003%**
+Data Collection: 🟩⬜⬜⬜⬜⬜⬜⬜⬜⬜ **6.35%**
 
 ---
 
