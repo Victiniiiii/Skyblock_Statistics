@@ -113,11 +113,4 @@ plotDataFromCSV <- function() {
     grid.arrange(p1, p2, p3, ncol = 1)
 }
 
-makeThisProjectR <- function() {
-    cat("Hey, i'm adding this function here so the project shows up as an R project and not Python or Javascript.
-    Honestly, i'm pretty sure i have more R code than Python, but anyway, here i am. Bla bla bla bla bla bla.
-    Okay it needs more text. Here is a fun fact about R: Did you know that R was developed in New Zealand? It's
-    quite surprising. Also the language is named after both of its developers' names' first letters (which were both R)")
-}
-
 plotDataFromCSV()
