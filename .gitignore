@@ -1,11 +1,12 @@
 config.txt
-state.json
+
 guild_state.json
 data_state.json
+sync_state.json
 
 node_modules
 
 *.log
 *.png
-.lintr
 *.bak
+.lintr
