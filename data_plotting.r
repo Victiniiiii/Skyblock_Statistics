@@ -1,10 +1,12 @@
-install.packages(c("ggplot2", "gridExtra", "scales", "broom", "dplyr", "GGally"))
+install.packages(c("ggplot2", "gridExtra", "scales", "broom", "dplyr", "GGally", "e1071", "modeest"))
 library(ggplot2)
 library(gridExtra)
 library(scales)
 library(broom)
 library(dplyr)
 library(GGally)
+library(e1071)
+library(modeest)
 
 ###########################
 ##### GRAPHICS STUFF  #####
@@ -91,10 +93,33 @@ plotDataFromCSV <- function() {
 
     cat("\n--- Descriptive Stats ---\n")
     print(summary(data))
+
     cat("\nStandard Deviations:\n")
     print(sapply(data[, c("networth", "magical_power", "level")], sd, na.rm = TRUE))
+
     cat("\nVariances:\n")
     print(sapply(data[, c("networth", "magical_power", "level")], var, na.rm = TRUE))
+
+    cat("\nMeans:\n")
+    print(sapply(data, mean, na.rm = TRUE))
+
+    cat("\nMedians:\n")
+    print(sapply(data, median, na.rm = TRUE))
+
+    cat("\nModes:\n")
+    print(sapply(data, function(x) mlv(x, method = "mfv", na.rm = TRUE)))
+
+    cat("\nStandard Deviations:\n")
+    print(sapply(data, sd, na.rm = TRUE))
+
+    cat("\nVariances:\n")
+    print(sapply(data, var, na.rm = TRUE))
+
+    cat("\nSkewness:\n")
+    print(sapply(data[, sapply(data, is.numeric)], skewness, na.rm = TRUE))
+
+    cat("\nKurtosis:\n")
+    print(sapply(data[, sapply(data, is.numeric)], kurtosis, na.rm = TRUE))
 
     sink("regression_stats.txt")
     p1 <- regression_and_plot(data, "magical_power", "networth", "Magical Power", "Networth (coins)", "#1f77b4")

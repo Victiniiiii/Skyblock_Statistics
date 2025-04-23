@@ -1,0 +1,48 @@
+--- Descriptive Stats ---
+     uuid           magical_power        level           networth
+Length:2875        Min.   :   0.0   Min.   :  7.92   Min.   :2.076e+05
+Class :character   1st Qu.: 504.0   1st Qu.:152.16   1st Qu.:1.555e+09
+Mode  :character   Median : 783.0   Median :228.92   Median :5.074e+09
+                    Mean   : 820.1   Mean   :229.72   Mean   :8.602e+09
+                    3rd Qu.:1132.5   3rd Qu.:307.74   3rd Qu.:1.341e+10
+                    Max.   :1761.0   Max.   :472.47   Max.   :3.805e+10  
+
+Standard Deviations:
+networth     magical_power     level
+ 9.051124e+09  4.039342e+02  9.815080e+01
+
+Variances:
+networth      magical_power     level
+8.192284e+19  1.631628e+05  9.633579e+03
+
+Means:
+magical_power         level      networth 
+8.200539e+02  2.297244e+02  8.602317e+09
+
+Medians:
+magical_power   "783" 
+level      "228.92"               
+networth     "5073864138.88"
+
+Modes:
+$magical_power
+[1] 627 649
+
+$level
+[1]  96.13 100.39 114.34 135.68 136.17 314.13 320.11 322.60 393.69 413.14
+
+Standard Deviations:
+magical_power      level      networth
+4.039342e+02  9.815080e+01  9.051124e+09 
+
+Variances:
+magical_power      level      networth
+1.631628e+05  9.633579e+03  8.192284e+19
+
+Skewness:
+magical_power         level      networth
+   0.10980536    0.01320952    1.25351625
+
+Kurtosis:
+magical_power         level      networth 
+   -0.9011350    -0.8654096     0.7110457
