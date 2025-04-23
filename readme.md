@@ -102,9 +102,13 @@ UUID Collection: 🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩 **100%**
 Data Collection: 🟩⬜⬜⬜⬜⬜⬜⬜⬜⬜ **9.26%**
 
 **Current Data:**
-![Plot 1: Magical Power vs Networth](plot1.png)
-![Plot 2: Level vs Networth](plot2.png)
-![Plot 3: Magical Power vs Level](plot3.png)
+
+![plot1](https://github.com/user-attachments/assets/c2d1c703-6b50-4d2e-908c-514acd72a395)
+
+![plot2](https://github.com/user-attachments/assets/95217079-aa94-4b86-bcd7-7ddf7cf4d3cd)
+
+![plot3](https://github.com/user-attachments/assets/dc11b58a-06d3-4672-8db2-c061793f9088)
+
 ---
 
 ## 📄 License and Credits
