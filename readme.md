@@ -95,14 +95,16 @@ These plots help visualize trends and correlations across the player base.
 
 Final results are still running. This section will be updated with the complete data visualizations and summary of findings.
 
-✅ All gathered data and plots will be free to use once published.
-
 **Current Progress:**
 
 UUID Collection: 🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩 **100%**
 
-Data Collection: 🟩⬜⬜⬜⬜⬜⬜⬜⬜⬜ **6.35%**
+Data Collection: 🟩⬜⬜⬜⬜⬜⬜⬜⬜⬜ **9.26%**
 
+**Current Data:**
+![Plot 1: Magical Power vs Networth](plot1.png)
+![Plot 2: Level vs Networth](plot2.png)
+![Plot 3: Magical Power vs Level](plot3.png)
 ---
 
 ## 📄 License and Credits
