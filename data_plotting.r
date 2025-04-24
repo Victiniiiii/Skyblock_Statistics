@@ -9,7 +9,7 @@ library(e1071)
 library(modeest)
 
 ###########################
-##### GRAPHICS STUFF  #####
+##### GRAPHICS STUFF ######
 ###########################
 
 custom_x_scale <- function() {
@@ -91,6 +91,8 @@ plotDataFromCSV <- function() {
 
     data <- remove_outliers_df(data, c("networth", "magical_power", "level"))
 
+    sink("combined_stats.txt")
+
     cat("\n--- Descriptive Stats ---\n")
     print(summary(data))
 
@@ -106,13 +108,10 @@ plotDataFromCSV <- function() {
     cat("\nMedians:\n")
     print(sapply(data, median, na.rm = TRUE))
 
-    cat("\nModes:\n")
-    print(sapply(data, function(x) mlv(x, method = "mfv", na.rm = TRUE)))
-
-    cat("\nStandard Deviations:\n")
+    cat("\nStandard Deviations (again, full df):\n")
     print(sapply(data, sd, na.rm = TRUE))
 
-    cat("\nVariances:\n")
+    cat("\nVariances (again, full df):\n")
     print(sapply(data, var, na.rm = TRUE))
 
     cat("\nSkewness:\n")
@@ -121,10 +120,10 @@ plotDataFromCSV <- function() {
     cat("\nKurtosis:\n")
     print(sapply(data[, sapply(data, is.numeric)], kurtosis, na.rm = TRUE))
 
-    sink("regression_stats.txt")
     p1 <- regression_and_plot(data, "magical_power", "networth", "Magical Power", "Networth (coins)", "#1f77b4")
     p2 <- regression_and_plot(data, "level", "networth", "Level", "Networth (coins)", "#d62728")
     p3 <- regression_and_plot(data, "magical_power", "level", "Magical Power", "Level", "#2ca02c")
+
     sink()
 
     plots <- list(p1, p2, p3)

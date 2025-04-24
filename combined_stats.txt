@@ -1,0 +1,56 @@
+
+--- Descriptive Stats ---
+     uuid           magical_power        level           networth        
+ Length:3728        Min.   :   0.0   Min.   :  7.92   Min.   :1.965e+05  
+ Class :character   1st Qu.: 508.8   1st Qu.:154.51   1st Qu.:1.614e+09  
+ Mode  :character   Median : 796.5   Median :231.14   Median :5.343e+09  
+                    Mean   : 827.0   Mean   :231.65   Mean   :8.820e+09  
+                    3rd Qu.:1142.0   3rd Qu.:308.78   3rd Qu.:1.360e+10  
+                    Max.   :1761.0   Max.   :472.47   Max.   :3.860e+10  
+
+Standard Deviations:
+     networth magical_power         level 
+ 9.198073e+09  4.028494e+02  9.797997e+01 
+
+Variances:
+     networth magical_power         level 
+ 8.460455e+19  1.622876e+05  9.600074e+03 
+
+Means:
+         uuid magical_power         level      networth 
+           NA  8.270263e+02  2.316506e+02  8.819754e+09 
+
+Medians:
+         uuid magical_power         level      networth 
+           NA  7.965000e+02  2.311400e+02  5.342743e+09 
+
+Standard Deviations (again, full df):
+         uuid magical_power         level      networth 
+           NA  4.028494e+02  9.797997e+01  9.198073e+09 
+
+Variances (again, full df):
+         uuid magical_power         level      networth 
+           NA  1.622876e+05  9.600074e+03  8.460455e+19 
+
+Skewness:
+magical_power         level      networth 
+   0.08293271   -0.01712736    1.24997762 
+
+Kurtosis:
+magical_power         level      networth 
+   -0.9120144    -0.8533663     0.7301933 
+
+--- Regression: networth vs magical_power ---
+R^2       : 0.691
+Intercept : -6875117297.773
+Slope     : 18977476.153
+
+--- Regression: networth vs level ---
+R^2       : 0.629
+Intercept : -8425757203.493
+Slope     : 74446206.039
+
+--- Regression: level vs magical_power ---
+R^2       : 0.787
+Intercept : 53.182
+Slope     : 0.216
