@@ -99,7 +99,7 @@ Final results are still running. This section will be updated with the complete 
 
 UUID Collection: 🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩 **100%**
 
-Data Collection: 🟩⬜⬜⬜⬜⬜⬜⬜⬜⬜ **9.26%**
+Data Collection: 🟩⬜⬜⬜⬜⬜⬜⬜⬜⬜ **12.26%**
 
 **Current Data:**
 

@@ -1,9 +1,5 @@
 config.txt
 
-guild_state.json
-data_state.json
-sync_state.json
-
 node_modules
 
 *.log
