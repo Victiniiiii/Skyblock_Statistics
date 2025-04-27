@@ -1,6 +1,6 @@
-# 📊 Hypixel Skyblock Statistics Correlation Project
+# Hypixel Skyblock Statistics Correlation Project
 
-## 🔍 What is this?
+## What is this?
 This is a statistics-focused project that explores correlations between **Player Level**, **Net Worth** (How rich a player is), and **Magical Power** (How strong a player is) in the online game *Hypixel Skyblock*.  
 
 The goal is to:
@@ -11,7 +11,7 @@ This is primarily an **exploratory data analysis** project using real scraped pl
 
 ---
 
-## 🚀 How to Run This
+## How to Run This
 
 ### 1. Configuration
 Create a file named `config.txt` and paste your Hypixel API key into it.  
@@ -19,19 +19,19 @@ Get an API key here: [https://developer.hypixel.net/](https://developer.hypixel.
 
 ### 2. Install Dependencies
 
-#### 🐍 Python (for scraping usernames)
+#### Python (for scraping usernames)
 Install the required packages using pip:
 ```
 pip install aiohttp asyncio-throttle
 ```
 
-#### 🧮 R (for data analysis & plotting)
+#### R (for data analysis & plotting)
 Install the following R libraries:
 ```
 install.packages(c("ggplot2", "gridExtra", "scales", "broom", "dplyr", "GGally"))
 ```
 
-#### 🟢 Node.js (for net worth calculations)
+#### Node.js (for net worth calculations)
 ```
 npm install skyhelper-networth
 ```
@@ -39,7 +39,7 @@ Make sure Node.js and npm are installed on your system.
 
 ---
 
-## 🔄 Username Gathering Workflow
+## Username Gathering Workflow
 
 ### Step 1: Scrape Soopy Leaderboards
 ```
@@ -57,7 +57,7 @@ For each username, checks their guild and extracts guildmates. This helps balanc
 
 ---
 
-## 📥 Data Collection from the usernames
+## Data Collection from the usernames
 
 Javascript is needed here for the usage of net worth calculation NPM package. 
 Run the script:
@@ -75,7 +75,7 @@ Players with disabled APIs are excluded to maintain data quality.
 
 ---
 
-## 📈 Plotting Results
+## Plotting Results
 
 Once `player_data.csv` is ready, generate the plots:
 ```
@@ -91,7 +91,7 @@ These plots help visualize trends and correlations across the player base.
 
 ---
 
-## 📤 Output (Work In Progress)
+## Output (Work In Progress)
 
 Final results are still running. This section will be updated with the complete data visualizations and summary of findings.
 
@@ -99,7 +99,7 @@ Final results are still running. This section will be updated with the complete 
 
 UUID Collection: 🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩 **100%**
 
-Data Collection: 🟩🟩⬜⬜⬜⬜⬜⬜⬜⬜ **15.25%**
+Data Collection: 🟩🟩⬜⬜⬜⬜⬜⬜⬜⬜ **18.24%**
 
 **Current Data:**
 
