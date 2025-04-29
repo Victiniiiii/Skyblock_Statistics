@@ -99,15 +99,13 @@ Final results are still running. This section will be updated with the complete 
 
 UUID Collection: 🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩 **100%**
 
-Data Collection: 🟩🟩⬜⬜⬜⬜⬜⬜⬜⬜ **18.24%**
+Data Collection: 🟩🟩⬜⬜⬜⬜⬜⬜⬜⬜ **21.23%**
 
 **Current Data:**
 
-![plot1](https://github.com/user-attachments/assets/c2d1c703-6b50-4d2e-908c-514acd72a395)
-
-![plot2](https://github.com/user-attachments/assets/95217079-aa94-4b86-bcd7-7ddf7cf4d3cd)
-
-![plot3](https://github.com/user-attachments/assets/dc11b58a-06d3-4672-8db2-c061793f9088)
+![plot1](https://github.com/user-attachments/assets/92ad3974-aa46-44e4-8dd1-ea7af44291d4)
+![plot2](https://github.com/user-attachments/assets/2439aeeb-233c-4ee0-8531-12b34e6a0139)
+![plot3](https://github.com/user-attachments/assets/07cbb31a-14b9-4c5c-9738-9d2104dd7993)
 
 ---
 
