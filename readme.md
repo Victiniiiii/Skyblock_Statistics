@@ -91,17 +91,7 @@ These plots help visualize trends and correlations across the player base.
 
 ---
 
-## Output (Work In Progress)
-
-Final results are still running. This section will be updated with the complete data visualizations and summary of findings.
-
-**Current Progress:**
-
-UUID Collection: 🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩 **100%**
-
-Data Collection: 🟩🟩⬜⬜⬜⬜⬜⬜⬜⬜ **21.23%**
-
-**Current Data:**
+## Output
 
 ![plot1](https://github.com/user-attachments/assets/92ad3974-aa46-44e4-8dd1-ea7af44291d4)
 ![plot2](https://github.com/user-attachments/assets/2439aeeb-233c-4ee0-8531-12b34e6a0139)
